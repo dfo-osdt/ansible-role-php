@@ -34,15 +34,13 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
-      # Role defaults on every supported release; each consuming repo's values on noble.
+      # Role defaults (PHP 8.5) on every supported release; every override (PHP 8.4) on noble.
       matrix:
         include:
           - {scenario: default, distro: ubuntu2204}
           - {scenario: default, distro: ubuntu2404}
           - {scenario: default, distro: ubuntu2604}
-          - {scenario: coip, distro: ubuntu2404}
-          - {scenario: osp, distro: ubuntu2404}
-          - {scenario: forge, distro: ubuntu2404}
+          - {scenario: custom, distro: ubuntu2404}
     steps:
       - uses: actions/checkout@v5
         with:

@@ -223,11 +223,11 @@ ansible-galaxy collection install -r molecule/requirements.yml
 
 yamllint . && ansible-lint     # lint
 aar-doc . markdown             # regenerate the variables section of this README
-molecule test -s coip          # needs Docker; scenarios: default, coip, osp, forge
+molecule test -s custom        # needs Docker; scenarios: default, custom
 MOLECULE_DISTRO=ubuntu2204 molecule test
 ```
 
-The `coip`, `osp` and `forge` scenarios use each consuming repo's real values and check the effective result: installed packages, ini values as PHP-FPM loads them, pool settings, socket owner, Composer and the service. Values that are vaulted in those repos are replaced by stand-ins, noted in each scenario.
+`default` runs the role defaults (PHP 8.5) on jammy, noble and resolute. `custom` sets every override at once on PHP 8.4. Both check the effective result: installed packages, ini values as PHP-FPM loads them, pool settings, socket owner, removed legacy files and PPA sources, Composer and the service.
 
 Edit variables in `meta/argument_specs.yml` and `defaults/main.yml` together. CI fails if this README is out of date.
 

@@ -6,6 +6,8 @@
   gather_facts: true
   vars:
     php_version: "{{ verify_php_version }}"
+    # Settings the php CLI forces regardless of ini files.
+    verify_cli_forced: [max_execution_time, max_input_time, display_errors, html_errors, implicit_flush, output_buffering]
   tasks:
     - name: Gather installed packages
       ansible.builtin.package_facts:
@@ -47,6 +49,7 @@
       register: verify_ini_raw
       changed_when: false
 
+    # The CLI binary hard-wires a few settings, so for those check the file php-fpm reads instead.
     - name: Check the FPM ini values
       ansible.builtin.assert:
         that: (verify_ini_raw.stdout | from_json)[item.key] | string == item.value | string
@@ -54,7 +57,19 @@
           {{ item.key }} is {{ (verify_ini_raw.stdout | from_json)[item.key] | default('unset') }},
           expected {{ item.value }}
         quiet: true
-      loop: "{{ verify_ini | dict2items }}"
+      loop: "{{ verify_ini | dict2items | rejectattr('key', 'in', verify_cli_forced) }}"
+
+    - name: Read the ini override file
+      ansible.builtin.slurp:
+        src: /etc/php/{{ php_version }}/fpm/conf.d/99-ansible.ini
+      register: verify_ini_file
+
+    - name: Check CLI-forced settings in the ini override file
+      ansible.builtin.assert:
+        that: (item.key ~ ' = ' ~ item.value) in (verify_ini_file.content | b64decode).splitlines()
+        fail_msg: "99-ansible.ini does not contain '{{ item.key }} = {{ item.value }}'"
+        quiet: true
+      loop: "{{ verify_ini | dict2items | selectattr('key', 'in', verify_cli_forced) }}"
 
     - name: Check the php-fpm configuration is valid
       ansible.builtin.command: php-fpm{{ php_version }} -t
