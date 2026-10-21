@@ -33,7 +33,7 @@ provisioner:
           post_max_size: 260M
           max_execution_time: "300"
           opcache.enable: "1"
-          opcache.validate_timestamps: "0"
+          opcache.validate_timestamps: ""  # PHP reports Off as an empty string
           opcache.memory_consumption: "192"
         verify_legacy_files: [99-old-uploads.ini, old_config.ini]
         verify_pool:

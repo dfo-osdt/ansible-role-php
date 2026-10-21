@@ -25,20 +25,20 @@ What it does, in order:
 
 ## Installation
 
-Add the role to your `requirements.yml`, pinned to a release tag:
+Add the role to your `requirements.yml`. Consumers track `main`, like the other dfo-osdt roles:
 
 ```yaml
 roles:
   - name: php
     src: https://github.com/dfo-osdt/ansible-role-php
-    version: v1.0.0
+    version: main
 ```
 
 ```sh
 ansible-galaxy install -r requirements.yml --force
 ```
 
-`--force` is needed to pick up a new tag once the role is already installed.
+`--force` is needed to pick up new commits once the role is already installed. To freeze a repo on a known version, set `version` to a commit SHA or tag instead.
 
 ## Example playbooks
 
@@ -122,14 +122,14 @@ In check mode on a server where PHP is not installed yet, the check is skipped.
 
 ### Raising a floor when PHP ships a security release
 
-The floors are role defaults, so one role release protects every repo that uses it.
+The floors are role defaults, so one change on `main` protects every repo that uses it.
 
 1. Find the fixed versions on the [PHP changelog](https://www.php.net/ChangeLog-8.php).
 2. Update `php_min_versions` in `defaults/main.yml` and `meta/argument_specs.yml`, with the advisory IDs in the comment.
-3. Run `aar-doc . markdown` to update this README, add a `CHANGELOG.md` entry, and release a new **minor** version.
-4. Bump the tag in each repo's `requirements.yml` and run its playbook with `--tags php_upgrade`.
+3. Run `aar-doc . markdown` to update this README, add a `CHANGELOG.md` entry, and merge to `main` once CI passes.
+4. In each repo, run `ansible-galaxy install -r requirements.yml --force`, then the playbook with `--tags php_upgrade`.
 
-To patch ahead of a role release, set `php_min_versions` in the consuming repo. Remove the override once the role catches up.
+To patch one repo ahead of the role, set `php_min_versions` there. Remove the override once the role catches up.
 
 ## Package source
 
@@ -178,7 +178,7 @@ ansible-playbook server-setup.yml --tags php_upgrade
 | Variable | Description | Type | Default |
 |---|---|---|---|
 | `php_version` | PHP minor version to install, for example `8.4` or `8.5`. Must have an entry in `php_min_versions`. | str | `8.5` |
-| `php_min_versions` | Lowest patch release allowed for each PHP minor version. After installing and upgrading, the role fails if the `php` CLI or `php-fpm` binary is older than this. The defaults are raised in a new role release whenever PHP ships a security fix. Override only to raise a floor ahead of a release. | dict | `{"8.4": "8.4.27", "8.5": "8.5.12"}` |
+| `php_min_versions` | Lowest patch release allowed for each PHP minor version. After installing and upgrading, the role fails if the `php` CLI or `php-fpm` binary is older than this. The defaults are raised on `main` whenever PHP ships a security fix. Override only to raise a floor ahead of the role. | dict | `{"8.4": "8.4.27", "8.5": "8.5.12"}` |
 | `php_extensions` | Extensions installed as `php<version>-<name>`, for example `pgsql`, `mysql` or `redis`. `fpm`, `cli` and `common` are always installed. Setting this replaces the default list, so include the defaults you still want. | list of `str` | `['bcmath', 'curl', 'gd', 'intl', 'mbstring', 'xml', 'zip']` |
 | `php_upgrade` | Upgrade the installed `php<version>-*` packages to the latest available release on every run. Other packages are never upgraded. Sets the fact `php_upgraded` to `true` when anything was upgraded, so a playbook can restart queue workers. | bool | `True` |
 | `php_sury_uri` | URI of the PHP APT repository. | str | `https://packages.sury.org/php/` |

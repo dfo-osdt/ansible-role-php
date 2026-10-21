@@ -1,9 +1,8 @@
 # Changelog
 
-All notable changes to this role. Versions follow [Semantic Versioning](https://semver.org/):
-raising a `php_min_versions` floor is a minor release.
+All notable changes to this role, newest first. Consumers track `main`; entries are dated.
 
-## [Unreleased]
+## 2026-10-21
 
 ### Added
 

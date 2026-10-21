@@ -23,7 +23,7 @@ argument_specs:
         description:
           - Lowest patch release allowed for each PHP minor version.
           - After installing and upgrading, the role fails if the C(php) CLI or C(php-fpm) binary is older than this.
-          - The defaults are raised in a new role release whenever PHP ships a security fix. Override only to raise a floor ahead of a release.
+          - The defaults are raised on C(main) whenever PHP ships a security fix. Override only to raise a floor ahead of the role.
       php_extensions:
         type: list
         elements: str
