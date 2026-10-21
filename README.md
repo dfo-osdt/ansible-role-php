@@ -219,6 +219,7 @@ ansible-playbook server-setup.yml --tags php_upgrade
 ```sh
 uv venv && uv pip install -r requirements-dev.txt
 source .venv/bin/activate
+ansible-galaxy collection install -r molecule/requirements.yml
 
 yamllint . && ansible-lint     # lint
 aar-doc . markdown             # regenerate the variables section of this README

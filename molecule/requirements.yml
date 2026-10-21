@@ -1,0 +1,5 @@
+---
+# Collections Molecule needs to run the tests. The role itself only uses ansible.builtin.
+collections:
+  - name: community.docker
+    version: ">=4.0.0"

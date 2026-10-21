@@ -51,6 +51,7 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install -r ansible-role-php/requirements-dev.txt
+      - run: ansible-galaxy collection install -r ansible-role-php/molecule/requirements.yml
       - run: molecule test -s ${{ matrix.scenario }}
         working-directory: ansible-role-php
         env:
