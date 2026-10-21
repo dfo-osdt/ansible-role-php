@@ -14,7 +14,7 @@
   ansible.builtin.assert:
     that:
       - item.rc == 0
-      - item.stdout | regex_search('PHP (\d+\.\d+\.\d+)', '\1') | first is version(php_min_versions[php_version], '>=')
+      - item.stdout.split()[1] is version(php_min_versions[php_version], '>=')
     fail_msg: >-
       {{ item.item }} is older than {{ php_min_versions[php_version] }}
       or did not run: {{ item.stdout_lines[0] | default(item.stderr) }}.
