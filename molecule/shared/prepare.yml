@@ -17,6 +17,13 @@
 
     # Leftovers the role must clean up, written after the APT cache update
     # because the fake PPA has no signing key.
+    - name: Create the PHP-FPM conf.d directory
+      ansible.builtin.file:
+        path: /etc/php/{{ php_version }}/fpm/conf.d
+        state: directory
+        mode: "0755"
+      when: php_ini_legacy_files | default([]) | length > 0
+
     - name: Create legacy ini files
       ansible.builtin.copy:
         content: "; legacy file\n"
