@@ -1,0 +1,26 @@
+---
+- name: Install PHP ini overrides
+  ansible.builtin.template:
+    src: php.ini.j2
+    dest: /etc/php/{{ php_version }}/{{ item }}/conf.d/99-ansible.ini
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ php_ini_sapis }}"
+  notify: php_restart_fpm
+
+- name: Remove ini files replaced by php_ini
+  ansible.builtin.file:
+    path: /etc/php/{{ php_version }}/{{ item.0 }}/conf.d/{{ item.1 }}
+    state: absent
+  loop: "{{ php_ini_sapis | product(php_ini_legacy_files) | list }}"
+  notify: php_restart_fpm
+
+- name: Install the PHP-FPM www pool
+  ansible.builtin.template:
+    src: www.conf.j2
+    dest: /etc/php/{{ php_version }}/fpm/pool.d/www.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: php_restart_fpm

@@ -1,0 +1,67 @@
+---
+# Records what a server's PHP looks like, so a migration can be checked by diffing two snapshots.
+#
+#   ansible-playbook -i inventory.yml path/to/snapshot_php.yml -e snapshot=before
+#   ...run the migration...
+#   ansible-playbook -i inventory.yml path/to/snapshot_php.yml -e snapshot=after
+#   diff -ru snapshots/<host>/before snapshots/<host>/after
+#
+# Read-only on the server. Writes to ./snapshots on the control node (or -e snapshot_root=DIR).
+- name: Snapshot PHP
+  hosts: "{{ target | default('all') }}"
+  gather_facts: true
+  become: true
+  vars:
+    snapshot_dir: "{{ snapshot_root | default(lookup('ansible.builtin.env', 'PWD')) }}/snapshots/{{ inventory_hostname }}/{{ snapshot }}"
+    snapshot_commands:
+      packages: dpkg-query -W -f='${Package} ${Version}\n' 'php*' | sort
+      php_version: php -v
+      fpm_version: sh -c 'for b in /usr/sbin/php-fpm*; do $b -v; done'
+      # Every ini value as php-fpm sees it, one per line
+      fpm_ini: >-
+        sh -c 'for d in /etc/php/*/fpm; do echo "## $d";
+        PHP_INI_SCAN_DIR=$d/conf.d php$(basename $(dirname $d)) -c $d/php.ini
+        -r "foreach (ini_get_all(null, false) as \$k => \$v) echo \$k, \" = \", var_export(\$v, true), PHP_EOL;"; done'
+      fpm_config: sh -c 'for b in /usr/sbin/php-fpm*; do $b -tt 2>&1 | sed -E "s/^\[[^]]*\] //"; done'
+      conf_d: sh -c 'ls -l /etc/php/*/*/conf.d/ | grep -v "^total"'
+      pool_d: sh -c 'ls -l /etc/php/*/fpm/pool.d/ | grep -v "^total"'
+      apt_sources: sh -c 'grep -rh "^[^#]" /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null | sort'
+      sockets: sh -c 'stat -c "%n %U:%G %a" /run/php/*.sock'
+      services: sh -c 'systemctl list-units "php*-fpm.service" --no-legend --all; systemctl list-unit-files "php*-fpm.service" --no-legend'
+      composer: sh -c 'COMPOSER_ALLOW_SUPERUSER=1 composer --version --no-ansi 2>&1 | head -1'
+  tasks:
+    - name: Check a snapshot name was given
+      ansible.builtin.assert:
+        that: snapshot is defined
+        fail_msg: Pass -e snapshot=before (or after).
+
+    - name: Run the snapshot commands
+      ansible.builtin.shell: "{{ item.value }}"
+      args:
+        executable: /bin/bash
+      loop: "{{ snapshot_commands | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      register: snapshot_results
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Create the snapshot directory
+      ansible.builtin.file:
+        path: "{{ snapshot_dir }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+
+    - name: Write the snapshot files
+      ansible.builtin.copy:
+        content: "{{ item.stdout }}{{ ('\n## stderr\n' ~ item.stderr) if item.stderr else '' }}\n"
+        dest: "{{ snapshot_dir }}/{{ item.item.key }}.txt"
+        mode: "0644"
+      loop: "{{ snapshot_results.results }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+      delegate_to: localhost
+      become: false

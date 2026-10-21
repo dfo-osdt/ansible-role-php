@@ -1,0 +1,4 @@
+---
+output_file: README.md
+output_mode: inject
+output_template: .aar_doc.md.j2

@@ -1,0 +1,42 @@
+---
+# doi-forge-ansible's values. create_user, web_group and maximum_upload_size_mb are
+# vaulted there; forge, www-data and 100 are stand-ins.
+provisioner:
+  inventory:
+    host_vars:
+      instance:
+        test_users: [forge]
+        test_old_sources: true
+        php_version: "8.4"
+        php_extensions: [bcmath, curl, dom, gd, intl, mbstring, pgsql, redis, xml, zip]
+        php_ini:
+          # was forge_config.ini, whose "kpload_max_filesize" typo meant the upload limit never applied
+          upload_max_filesize: 100M
+          post_max_size: 100M
+        php_ini_legacy_files: [forge_config.ini]
+        # was three lineinfile edits of the stock www.conf
+        php_fpm_pool:
+          user: forge
+          group: www-data
+          listen.group: www-data
+
+        verify_php_version: "8.4"
+        verify_min_version: "8.4.27"
+        verify_packages: [php8.4, php8.4-fpm, php8.4-cli, php8.4-common, php8.4-bcmath, php8.4-curl,
+                          php8.4-gd, php8.4-intl, php8.4-mbstring, php8.4-pgsql, php8.4-redis, php8.4-xml,
+                          php8.4-zip]
+        verify_ini:
+          upload_max_filesize: 100M
+          post_max_size: 100M
+        verify_legacy_files: [forge_config.ini]
+        verify_pool:
+          user: forge
+          group: www-data
+          listen: /run/php/php8.4-fpm.sock
+          listen.owner: www-data
+          listen.group: www-data
+          pm: dynamic
+          pm.max_children: 5
+          pm.start_servers: 2
+          pm.min_spare_servers: 1
+          pm.max_spare_servers: 3

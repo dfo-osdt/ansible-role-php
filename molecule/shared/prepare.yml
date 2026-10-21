@@ -1,0 +1,37 @@
+---
+- name: Prepare
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Update the APT cache
+      ansible.builtin.apt:
+        update_cache: true
+
+    # Stand-ins for users the consuming repos create before this role runs.
+    - name: Create the test users
+      ansible.builtin.user:
+        name: "{{ item }}"
+        groups: www-data
+        append: true
+      loop: "{{ test_users | default([]) }}"
+
+    # Leftovers the role must clean up, written after the APT cache update
+    # because the fake PPA has no signing key.
+    - name: Create legacy ini files
+      ansible.builtin.copy:
+        content: "; legacy file\n"
+        dest: /etc/php/{{ php_version }}/fpm/conf.d/{{ item }}
+        mode: "0644"
+      loop: "{{ php_ini_legacy_files | default([]) }}"
+
+    - name: Create old PHP APT sources
+      ansible.builtin.copy:
+        content: "{{ item.content }}"
+        dest: "{{ item.dest }}"
+        mode: "0644"
+      loop:
+        - dest: /etc/apt/sources.list.d/ondrej-ubuntu-php-{{ ansible_facts['distribution_release'] }}.list
+          content: "deb https://ppa.launchpadcontent.net/ondrej/php/ubuntu/ {{ ansible_facts['distribution_release'] }} main\n"
+        - dest: /etc/apt/sources.list.d/sury-php.list
+          content: "deb https://packages.sury.org/php/ {{ ansible_facts['distribution_release'] }} main\n"
+      when: test_old_sources | default(false)

@@ -1,0 +1,26 @@
+---
+- name: Get PHP versions
+  ansible.builtin.command: "{{ item }} -v"
+  loop:
+    - php{{ php_version }}
+    - php-fpm{{ php_version }}
+  register: __php_versions
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# In check mode on a new host PHP is not installed yet, so there is nothing to check.
+- name: Check PHP is at least {{ php_min_versions[php_version] }}
+  ansible.builtin.assert:
+    that:
+      - item.rc == 0
+      - item.stdout | regex_search('PHP (\d+\.\d+\.\d+)', '\1') | first is version(php_min_versions[php_version], '>=')
+    fail_msg: >-
+      {{ item.item }} is older than {{ php_min_versions[php_version] }}
+      or did not run: {{ item.stdout_lines[0] | default(item.stderr) }}.
+      If packages.sury.org has not published the fix yet, wait and run with --tags php_upgrade.
+    success_msg: "{{ item.stdout_lines[0] }}"
+  loop: "{{ __php_versions.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: not (ansible_check_mode and item.rc != 0)

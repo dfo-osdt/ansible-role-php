@@ -1,0 +1,63 @@
+---
+# The ondrej/php Launchpad PPA is being merged into packages.sury.org (same packages).
+- name: Find APT source lists referencing the ondrej/php PPA
+  ansible.builtin.find:
+    paths: [/etc/apt, /etc/apt/sources.list.d]
+    patterns: ["*.list"]
+    contains: '.*(ppa\.launchpad\.net|ppa\.launchpadcontent\.net)/ondrej/php.*'
+  register: __php_ppa_lists
+
+- name: Remove ondrej/php PPA source lines
+  ansible.builtin.lineinfile:
+    path: "{{ item.path }}"
+    regexp: '(ppa\.launchpad\.net|ppa\.launchpadcontent\.net)/ondrej/php'
+    state: absent
+  loop: "{{ __php_ppa_lists.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  register: __php_ppa_lines
+
+- name: Find leftover ondrej/php PPA source files
+  ansible.builtin.find:
+    paths: /etc/apt/sources.list.d
+    patterns: ["*ondrej*php*.list", "*ondrej*php*.sources"]
+  register: __php_ppa_files
+
+# sury-php.list is the one-line source older versions of the in-repo roles wrote.
+- name: Remove leftover ondrej/php PPA and one-line sury source files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ __php_ppa_files.files | map(attribute='path') | list + ['/etc/apt/sources.list.d/sury-php.list'] }}"
+  register: __php_old_sources
+
+- name: Install python3-debian for deb822_repository
+  ansible.builtin.apt:
+    name: python3-debian
+    state: present
+
+- name: Check if the Sury archive keyring is installed
+  ansible.builtin.stat:
+    path: "{{ php_sury_keyring_path }}"
+  register: __php_sury_keyring
+
+- name: Install the Sury archive keyring package
+  ansible.builtin.apt:
+    deb: "{{ php_sury_keyring_url }}"
+  when: not __php_sury_keyring.stat.exists
+
+- name: Add the packages.sury.org PHP repository
+  ansible.builtin.deb822_repository:
+    name: sury-php
+    types: deb
+    uris: "{{ php_sury_uri }}"
+    suites: "{{ ansible_facts['distribution_release'] }}"
+    components: main
+    signed_by: "{{ php_sury_keyring_path }}"
+    state: present
+  register: __php_sury_repo
+
+- name: Update the APT cache after a repository change
+  ansible.builtin.apt:
+    update_cache: true
+  when: __php_ppa_lines is changed or __php_old_sources is changed or __php_sury_repo is changed

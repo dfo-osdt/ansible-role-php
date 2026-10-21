@@ -1,0 +1,104 @@
+---
+argument_specs:
+  main:
+    short_description: Install PHP and PHP-FPM from packages.sury.org
+    description:
+      - Installs PHP, PHP-FPM and extensions from packages.sury.org, and removes ondrej/php PPA sources.
+      - Upgrades the installed PHP packages and fails the play if PHP is older than the minimum patch release for its minor version.
+      - Manages one ini override file, the www pool, and Composer.
+    author:
+      - Vincent Auger
+    options:
+      php_version:
+        type: str
+        default: "8.5"
+        description:
+          - PHP minor version to install, for example V(8.4) or V(8.5).
+          - Must have an entry in O(php_min_versions).
+      php_min_versions:
+        type: dict
+        default:
+          "8.4": "8.4.27"
+          "8.5": "8.5.12"
+        description:
+          - Lowest patch release allowed for each PHP minor version.
+          - After installing and upgrading, the role fails if the C(php) CLI or C(php-fpm) binary is older than this.
+          - The defaults are raised in a new role release whenever PHP ships a security fix. Override only to raise a floor ahead of a release.
+      php_extensions:
+        type: list
+        elements: str
+        default: [bcmath, curl, gd, intl, mbstring, xml, zip]
+        description:
+          - Extensions installed as C(php<version>-<name>), for example V(pgsql), V(mysql) or V(redis).
+          - C(fpm), C(cli) and C(common) are always installed.
+          - Setting this replaces the default list, so include the defaults you still want.
+      php_upgrade:
+        type: bool
+        default: true
+        description:
+          - Upgrade the installed C(php<version>-*) packages to the latest available release on every run. Other packages are never upgraded.
+          - Sets the fact C(php_upgraded) to V(true) when anything was upgraded, so a playbook can restart queue workers.
+      php_sury_uri:
+        type: str
+        default: https://packages.sury.org/php/
+        description: URI of the PHP APT repository.
+      php_sury_keyring_url:
+        type: str
+        default: https://packages.sury.org/debsuryorg-archive-keyring.deb
+        description: URL of the C(.deb) package that installs the repository signing key.
+      php_sury_keyring_path:
+        type: str
+        default: /usr/share/keyrings/debsuryorg-archive-keyring.gpg
+        description: Path of the keyring installed by O(php_sury_keyring_url). The repository is pinned to this key.
+      php_ini:
+        type: dict
+        default: {}
+        description:
+          - ini settings written to C(/etc/php/<version>/<sapi>/conf.d/99-ansible.ini) for each SAPI in O(php_ini_sapis).
+          - Booleans are written as C(On) or C(Off). Quote sizes, for example V("250M").
+      php_ini_sapis:
+        type: list
+        elements: str
+        default: [fpm]
+        description: SAPIs that get the O(php_ini) file. Add V(cli) to apply the settings to command-line PHP as well.
+      php_ini_legacy_files:
+        type: list
+        elements: str
+        default: []
+        description:
+          - File names in C(conf.d) to delete for each SAPI in O(php_ini_sapis), for ini files that O(php_ini) replaces.
+          - Use it while migrating from another role, then remove it.
+      php_fpm_pool_defaults:
+        type: dict
+        default:
+          user: www-data
+          group: www-data
+          listen: /run/php/php<version>-fpm.sock
+          listen.owner: www-data
+          listen.group: www-data
+          pm: dynamic
+          pm.max_children: 5
+          pm.start_servers: 2
+          pm.min_spare_servers: 1
+          pm.max_spare_servers: 3
+        description:
+          - Base settings of the C(www) pool, matching Ubuntu's stock C(www.conf).
+          - Usually left alone. Set O(php_fpm_pool) instead.
+      php_fpm_pool:
+        type: dict
+        default: {}
+        description:
+          - Settings merged over O(php_fpm_pool_defaults) to build C(/etc/php/<version>/fpm/pool.d/www.conf).
+          - The role writes the whole file, so any setting not in the merged dict is PHP's built-in default.
+      php_composer_install:
+        type: bool
+        default: true
+        description: Install Composer, verifying the installer against its published SHA-384 signature.
+      php_composer_path:
+        type: str
+        default: /usr/local/bin/composer
+        description: Where Composer is installed.
+      php_composer_min_version:
+        type: str
+        default: "2.9"
+        description: If the installed Composer is older than this, the role runs C(composer self-update).

@@ -1,0 +1,29 @@
+---
+- name: Validate platform and variables
+  ansible.builtin.import_tasks: validate.yml
+  tags: [php_repo, php_upgrade, php_config, php_composer]
+
+- name: Configure packages.sury.org
+  ansible.builtin.import_tasks: repository.yml
+  tags: [php_repo]
+
+- name: Install PHP
+  ansible.builtin.import_tasks: install.yml
+
+- name: Configure PHP and PHP-FPM
+  ansible.builtin.import_tasks: config.yml
+  tags: [php_config]
+
+- name: Upgrade PHP packages
+  ansible.builtin.import_tasks: upgrade.yml
+  tags: [php_upgrade]
+
+# Runs on every PHP tag so no PHP run can leave a vulnerable version behind.
+- name: Check PHP meets the minimum version
+  ansible.builtin.import_tasks: version_check.yml
+  tags: [php_repo, php_upgrade, php_config, php_composer]
+
+- name: Install Composer
+  ansible.builtin.import_tasks: composer.yml
+  when: php_composer_install
+  tags: [php_composer]

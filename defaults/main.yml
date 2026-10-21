@@ -1,0 +1,51 @@
+---
+# Every variable is documented in meta/argument_specs.yml and README.md.
+
+php_version: "8.5"
+
+# Lowest patch release allowed for each minor version. The play fails if the
+# installed PHP is older. Raise these when a PHP security release ships.
+# 8.5.12 / 8.4.27: GHSA-w8hw-w9fx-j79w, GHSA-6wmf-4rv5-p3rp (2026-10-22)
+php_min_versions:
+  "8.4": "8.4.27"
+  "8.5": "8.5.12"
+
+# Installed as php<version>-<name>, on top of php<version>, -fpm, -cli and -common.
+php_extensions:
+  - bcmath
+  - curl
+  - gd
+  - intl
+  - mbstring
+  - xml
+  - zip
+
+# Upgrade the installed php<version>-* packages to the latest release on every run.
+php_upgrade: true
+
+php_sury_uri: https://packages.sury.org/php/
+php_sury_keyring_url: https://packages.sury.org/debsuryorg-archive-keyring.deb
+php_sury_keyring_path: /usr/share/keyrings/debsuryorg-archive-keyring.gpg
+
+php_ini: {}
+php_ini_sapis:
+  - fpm
+php_ini_legacy_files: []
+
+# Stock Ubuntu values for the www pool. Override single keys with php_fpm_pool.
+php_fpm_pool_defaults:
+  user: www-data
+  group: www-data
+  listen: "/run/php/php{{ php_version }}-fpm.sock"
+  listen.owner: www-data
+  listen.group: www-data
+  pm: dynamic
+  pm.max_children: 5
+  pm.start_servers: 2
+  pm.min_spare_servers: 1
+  pm.max_spare_servers: 3
+php_fpm_pool: {}
+
+php_composer_install: true
+php_composer_path: /usr/local/bin/composer
+php_composer_min_version: "2.9"

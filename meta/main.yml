@@ -1,0 +1,23 @@
+---
+galaxy_info:
+  role_name: php
+  namespace: dfo_osdt
+  author: Vincent Auger
+  description: Install PHP and PHP-FPM from packages.sury.org on Ubuntu, with a minimum-version security gate
+  company: Fisheries and Oceans Canada
+  license: MIT
+  min_ansible_version: "2.16"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+        - resolute
+  galaxy_tags:
+    - php
+    - phpfpm
+    - composer
+    - laravel
+    - web
+
+dependencies: []

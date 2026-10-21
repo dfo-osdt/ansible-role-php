@@ -1,0 +1,114 @@
+---
+# Checks the effective result, not the file layout:
+# packages, ini values as PHP-FPM sees them, the pool, the socket, Composer, the service.
+- name: Verify
+  hosts: all
+  gather_facts: true
+  vars:
+    php_version: "{{ verify_php_version }}"
+  tasks:
+    - name: Gather installed packages
+      ansible.builtin.package_facts:
+
+    - name: Check the expected PHP packages are installed
+      ansible.builtin.assert:
+        that: item in ansible_facts['packages']
+        fail_msg: "{{ item }} is not installed"
+        quiet: true
+      loop: "{{ verify_packages }}"
+
+    - name: Check only packages.sury.org provides PHP
+      ansible.builtin.command: grep -rlE 'ondrej/php|sury-php\.list' /etc/apt/sources.list /etc/apt/sources.list.d
+      register: verify_ppa
+      changed_when: false
+      failed_when: verify_ppa.rc != 1
+
+    - name: Get the PHP version
+      ansible.builtin.command: php{{ php_version }} -r 'echo PHP_VERSION;'
+      register: verify_version
+      changed_when: false
+
+    - name: Check PHP meets the minimum version
+      ansible.builtin.assert:
+        that: verify_version.stdout is version(verify_min_version, '>=')
+        fail_msg: "PHP {{ verify_version.stdout }} is older than {{ verify_min_version }}"
+
+    # Loads exactly what php-fpm loads: the fpm php.ini plus the fpm conf.d directory.
+    - name: Read ini values with the FPM configuration
+      ansible.builtin.command:
+        argv:
+          - php{{ php_version }}
+          - -c
+          - /etc/php/{{ php_version }}/fpm/php.ini
+          - -r
+          - echo json_encode(ini_get_all(null, false));
+      environment:
+        PHP_INI_SCAN_DIR: /etc/php/{{ php_version }}/fpm/conf.d
+      register: verify_ini_raw
+      changed_when: false
+
+    - name: Check the FPM ini values
+      ansible.builtin.assert:
+        that: (verify_ini_raw.stdout | from_json)[item.key] | string == item.value | string
+        fail_msg: >-
+          {{ item.key }} is {{ (verify_ini_raw.stdout | from_json)[item.key] | default('unset') }},
+          expected {{ item.value }}
+        quiet: true
+      loop: "{{ verify_ini | dict2items }}"
+
+    - name: Check the php-fpm configuration is valid
+      ansible.builtin.command: php-fpm{{ php_version }} -t
+      changed_when: false
+
+    - name: Read the www pool
+      ansible.builtin.slurp:
+        src: /etc/php/{{ php_version }}/fpm/pool.d/www.conf
+      register: verify_pool_raw
+
+    - name: Check the www pool settings
+      ansible.builtin.assert:
+        that: (item.key ~ ' = ' ~ item.value) in (verify_pool_raw.content | b64decode).splitlines()
+        fail_msg: "www.conf does not contain '{{ item.key }} = {{ item.value }}'"
+        quiet: true
+      loop: "{{ verify_pool | dict2items }}"
+
+    - name: Gather services
+      ansible.builtin.service_facts:
+
+    - name: Check php-fpm is running and enabled
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['services'][__service]['state'] == 'running'
+          - ansible_facts['services'][__service]['status'] == 'enabled'
+      vars:
+        __service: php{{ php_version }}-fpm.service
+
+    - name: Stat the php-fpm socket
+      ansible.builtin.stat:
+        path: /run/php/php{{ php_version }}-fpm.sock
+      register: verify_socket
+
+    - name: Check the socket owner and group
+      ansible.builtin.assert:
+        that:
+          - verify_socket.stat.exists
+          - verify_socket.stat.pw_name == verify_pool['listen.owner']
+          - verify_socket.stat.gr_name == verify_pool['listen.group']
+
+    - name: Check the legacy ini files are gone
+      ansible.builtin.stat:
+        path: /etc/php/{{ php_version }}/fpm/conf.d/{{ item }}
+      register: verify_legacy
+      failed_when: verify_legacy.stat.exists
+      loop: "{{ verify_legacy_files | default([]) }}"
+
+    - name: Get the Composer version
+      ansible.builtin.command: /usr/local/bin/composer --version --no-ansi
+      environment:
+        COMPOSER_ALLOW_SUPERUSER: "1"
+      register: verify_composer
+      changed_when: false
+
+    - name: Check Composer is recent enough
+      ansible.builtin.assert:
+        that: verify_composer.stdout | regex_search('(\d+\.\d+\.\d+)') is version('2.9', '>=')

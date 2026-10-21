@@ -1,0 +1,19 @@
+---
+- name: Check the platform is supported
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Ubuntu'
+      - ansible_facts['distribution_release'] in __php_supported_releases
+    fail_msg: >-
+      This role supports Ubuntu {{ __php_supported_releases | join(', ') }},
+      not {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_release'] }}.
+    quiet: true
+
+- name: Check a minimum version is defined for PHP {{ php_version }}
+  ansible.builtin.assert:
+    that:
+      - php_version in php_min_versions
+    fail_msg: >-
+      php_min_versions has no entry for PHP {{ php_version }}.
+      Add one so the role can refuse vulnerable releases.
+    quiet: true

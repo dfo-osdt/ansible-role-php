@@ -1,0 +1,4 @@
+; {{ ansible_managed }}
+{% for key, value in php_ini | dictsort %}
+{{ key }} = {{ ('On' if value else 'Off') if value is boolean else value }}
+{% endfor %}

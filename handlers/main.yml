@@ -1,0 +1,13 @@
+---
+# Both listen on php_restart_fpm and run in this order, so a broken config
+# fails the play before the running php-fpm is stopped.
+- name: Test php-fpm configuration
+  ansible.builtin.command: php-fpm{{ php_version }} -t
+  changed_when: false
+  listen: php_restart_fpm
+
+- name: Restart php-fpm
+  ansible.builtin.service:
+    name: php{{ php_version }}-fpm
+    state: restarted
+  listen: php_restart_fpm

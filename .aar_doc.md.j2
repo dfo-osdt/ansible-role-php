@@ -1,0 +1,11 @@
+<!-- BEGIN_ANSIBLE_DOCS -->
+<!-- Generated from meta/argument_specs.yml by aar-doc. Do not edit by hand. -->
+## Role variables
+
+{% set path, options = entrypoint_options['main'][0] -%}
+| Variable | Description | Type | Default |
+|---|---|---|---|
+{% for name, details in options.items() -%}
+| `{{ name }}` | {{ details.display_description | ansible_doc_markup }} | {{ details.display_type }} | {{ details.display_default if details.display_default else '`{}`' }} |
+{% endfor -%}
+<!-- END_ANSIBLE_DOCS -->

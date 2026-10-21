@@ -1,0 +1,54 @@
+---
+- name: Check if Composer is installed
+  ansible.builtin.stat:
+    path: "{{ php_composer_path }}"
+  register: __php_composer
+
+- name: Install Composer
+  when: not __php_composer.stat.exists
+  block:
+    - name: Get the Composer installer signature
+      ansible.builtin.uri:
+        url: https://composer.github.io/installer.sig
+        return_content: true
+      register: __php_composer_sig
+
+    - name: Download the Composer installer and verify its signature
+      ansible.builtin.get_url:
+        url: https://getcomposer.org/installer
+        dest: /tmp/composer-setup.php
+        checksum: "sha384:{{ __php_composer_sig.content | trim }}"
+        mode: "0644"
+
+    - name: Run the Composer installer
+      ansible.builtin.command:
+        argv:
+          - php{{ php_version }}
+          - /tmp/composer-setup.php
+          - --install-dir={{ php_composer_path | dirname }}
+          - --filename={{ php_composer_path | basename }}
+        creates: "{{ php_composer_path }}"
+
+  always:
+    - name: Remove the Composer installer
+      ansible.builtin.file:
+        path: /tmp/composer-setup.php
+        state: absent
+
+- name: Get the Composer version
+  ansible.builtin.command: "{{ php_composer_path }} --version --no-ansi"
+  environment:
+    COMPOSER_ALLOW_SUPERUSER: "1"
+  register: __php_composer_version
+  changed_when: false
+  check_mode: false
+  when: not (ansible_check_mode and not __php_composer.stat.exists)
+
+- name: Update Composer when older than {{ php_composer_min_version }}
+  ansible.builtin.command: "{{ php_composer_path }} self-update --no-interaction"
+  environment:
+    COMPOSER_ALLOW_SUPERUSER: "1"
+  changed_when: true
+  when:
+    - __php_composer_version is not skipped
+    - __php_composer_version.stdout | regex_search('(\d+\.\d+\.\d+)') is version(php_composer_min_version, '<')

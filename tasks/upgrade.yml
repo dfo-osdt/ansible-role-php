@@ -1,0 +1,22 @@
+---
+- name: Gather installed packages
+  ansible.builtin.package_facts:
+  when: php_upgrade
+
+# Only the installed php<version>-* packages, never a full apt upgrade.
+- name: Upgrade installed PHP packages for {{ php_version }}
+  ansible.builtin.apt:
+    name: "{{ ansible_facts['packages'].keys() | select('match', '^php' ~ (php_version | regex_escape) ~ '(-|$)') | list }}"
+    state: latest # noqa package-latest
+    only_upgrade: true
+    update_cache: true
+  register: __php_upgrade
+  notify: php_restart_fpm
+  when: php_upgrade
+
+- name: Record whether PHP was upgraded
+  ansible.builtin.set_fact:
+    php_upgraded: "{{ __php_upgrade is changed }}"
+
+- name: Apply a pending php-fpm restart
+  ansible.builtin.meta: flush_handlers

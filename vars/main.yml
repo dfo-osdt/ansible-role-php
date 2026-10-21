@@ -1,0 +1,11 @@
+---
+__php_supported_releases:
+  - jammy
+  - noble
+  - resolute
+
+__php_packages: >-
+  {{ ['php' ~ php_version]
+     + (['fpm', 'cli', 'common'] + php_extensions) | unique | map('regex_replace', '^', 'php' ~ php_version ~ '-') | list }}
+
+__php_fpm_pool: "{{ php_fpm_pool_defaults | combine(php_fpm_pool) }}"
